@@ -1,0 +1,75 @@
+name: 🌙 Nightly Local Web Agent - Erftstadt
+
+on:
+  schedule:
+    # Läuft täglich um 2:00 Uhr (UTC = 3:00 Uhr deutsche Zeit / 4:00 Uhr Sommerzeit)
+    - cron: '0 1 * * *'
+  # Manuell auslösbar (zum Testen)
+  workflow_dispatch:
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 🌐 Set up Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+
+      - name: 📦 Install ChromeDriver
+        uses: nanasess/setup-chromedriver@v2
+
+      - name: 📦 Install Python dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: 🔍 Run Scraper (Google Maps → Erftstadt)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NETLIFY_TOKEN: ${{ secrets.NETLIFY_TOKEN }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          REPORT_TO: ${{ secrets.REPORT_TO }}
+        working-directory: scripts
+        run: python scraper.py
+
+      - name: 🤖 Generate websites with Google Gemini AI
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        working-directory: scripts
+        run: python generator.py
+
+      - name: 🚀 Deploy to Netlify
+        env:
+          NETLIFY_TOKEN: ${{ secrets.NETLIFY_TOKEN }}
+        working-directory: scripts
+        run: python deployer.py
+
+      - name: 📧 Send morning report
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          REPORT_TO: ${{ secrets.REPORT_TO }}
+        working-directory: scripts
+        run: python reporter.py
+
+      - name: 💾 Upload artifacts (logs + manifest)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-results-${{ github.run_number }}
+          path: |
+            scripts/agent.log
+            scripts/businesses_no_website.json
+            scripts/generated_sites/manifest.json
+          retention-days: 30
