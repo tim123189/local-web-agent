@@ -9,13 +9,12 @@ import re
 import logging
 from pathlib import Path
 from typing import Optional
-import google.generativeai as genai
+from google import genai
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-model = genai.GenerativeModel("gemini-1.5-flash")
+client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
 CATEGORY_STYLES = {
     "Friseur": {
@@ -100,12 +99,11 @@ WICHTIG:
 - Mach die Website so überzeugend, dass der Betrieb sie wirklich nutzen würde"""
 
     try:
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.GenerationConfig(max_output_tokens=8000)
-        )
-
-        html = response.text.strip()
+        response = client.models.generate_content(
+    model="gemini-2.0-flash",
+    contents=prompt
+)
+html = response.text.strip()
 
         # Clean up if markdown backticks slipped through
         if html.startswith("```"):
